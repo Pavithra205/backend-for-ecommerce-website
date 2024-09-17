@@ -1,0 +1,275 @@
+## customer details
+package com.ecommerce.api;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Random;
+import java.util.Scanner;
+
+import com.ecommerce.models.*;
+
+public class Customer {
+    CustomerDetails obj = new CustomerDetails();
+    protected static Connection con = null;
+    protected static PreparedStatement pstm = null;
+    protected static Scanner sc = new Scanner(System.in);
+    protected static ResultSet rs = null;
+
+    public void customerAccCreation() {
+        String sql = "insert into customer (Name,username,password,Dob,Email,Phone_no,Gender,Category,created_at,Modified_at) values(?,?,?,?,?,?,?,?,?,?);";
+        try {
+            con = dbconnection.getConnection();
+            pstm = con.prepareStatement(sql);
+            String cus_formated_dob = null;
+
+            SimpleDateFormat sd = new SimpleDateFormat("yyyy-MM-dd");
+            System.out.println("Enter name:");
+            obj.setName(sc.nextLine());
+
+            System.out.println("Enter username:");
+            obj.setUsername(sc.nextLine());
+
+            String cus_pass_check1;
+            String cus_pass_check2;
+            while (true) {
+                System.out.print("Enter password: ");
+                cus_pass_check1 = sc.nextLine();
+
+                System.out.print("Enter password again: ");
+                cus_pass_check2 = sc.nextLine();
+
+                if (cus_pass_check1.equals(cus_pass_check2)) {
+                    break;
+                } else {
+                    System.out.println("Password does not match! \nRe-enter the password");
+                }
+            }
+            System.out.println("Enter DOB (yyyy-MM-dd):");
+            String dob = sc.nextLine();
+            try {
+                Date date = sd.parse(dob);
+                cus_formated_dob = sd.format(date);
+            } catch (ParseException e) {
+                System.out.println(e.getMessage());
+            }
+            obj.setDob(cus_formated_dob);
+
+            System.out.println("Enter email id:");
+            obj.setEmail(sc.nextLine());
+
+            System.out.println("Enter phone no:");
+            obj.setPhoneNo(sc.nextLine());
+
+            System.out.println("Enter Gender (male/female/not preferred):");
+            obj.setGender(sc.nextLine());
+
+            System.out.println("Enter category (veg/non-veg):");
+            obj.setCategory(sc.nextLine());
+
+            // Insert customer details
+            pstm.setString(1, obj.getName());
+            pstm.setString(2, obj.getUsername());
+            pstm.setString(3, cus_pass_check1);
+            pstm.setString(4, obj.getDob());
+            pstm.setString(5, obj.getEmail());
+            pstm.setString(6, obj.getPhoneNo());
+            pstm.setString(7, obj.getGender());
+            pstm.setString(8, obj.getCategory());
+            pstm.setTimestamp(9, new Timestamp(new Date().getTime()));
+            pstm.setTimestamp(10, new Timestamp(new Date().getTime()));
+            pstm.executeUpdate();
+
+            // Add customer address
+            System.out.println("Enter number of addresses to add:");
+            int numAddresses = sc.nextInt();
+            sc.nextLine(); // consume newline character
+            for (int i = 0; i < numAddresses; i++) {
+                addCustomerAddress();
+            }
+
+            System.out.println("Account created successfully!!");
+
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                if (pstm != null) pstm.close();
+                if (con != null) con.close();
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+    }
+
+    public void addCustomerAddress() {
+        String addressSql = "insert into customer_address (customer_id, address_line1, address_line2, city, state, country, postal_code) values(?,?,?,?,?,?,?);";
+        try {
+            System.out.println("Enter address line 1:");
+            String addressLine1 = sc.nextLine();
+            System.out.println("Enter address line 2:");
+            String addressLine2 = sc.nextLine();
+            System.out.println("Enter city:");
+            String city = sc.nextLine();
+            System.out.println("Enter state:");
+            String state = sc.nextLine();
+            System.out.println("Enter country:");
+            String country = sc.nextLine();
+            System.out.println("Enter postal code:");
+            String postalCode = sc.nextLine();
+
+            pstm = con.prepareStatement(addressSql);
+            // Assuming the last inserted customer's id is retrieved
+            int customerId = getLastInsertedCustomerId();
+            pstm.setInt(1, customerId);
+            pstm.setString(2, addressLine1);
+            pstm.setString(3, addressLine2);
+            pstm.setString(4, city);
+            pstm.setString(5, state);
+            pstm.setString(6, country);
+            pstm.setString(7, postalCode);
+
+            pstm.executeUpdate();
+            System.out.println("Address added successfully!");
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public int getLastInsertedCustomerId() throws SQLException {
+        String sql = "SELECT id FROM customer ORDER BY id DESC LIMIT 1";
+        pstm = con.prepareStatement(sql);
+        rs = pstm.executeQuery();
+        if (rs.next()) {
+            return rs.getInt("id");
+        } else {
+            throw new SQLException("Could not retrieve customer ID.");
+        }
+    }
+
+    public void customerAccDeletion(int id) {
+        String sql = "delete from customer where id=?";
+        try {
+            con = dbconnection.getConnection();
+            pstm = con.prepareStatement(sql);
+            pstm.setInt(1, id);
+            int rowsaffected = pstm.executeUpdate();
+            if (rowsaffected > 0) {
+                System.out.println("Account deleted successfully");
+            } else {
+                System.out.println("Account does not exist");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                if (pstm != null) pstm.close();
+                if (con != null) pstm.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void displayProfile(int id) {
+        try {
+            con = dbconnection.getConnection();
+            String sql = "select * from customer where id=?";
+            pstm = con.prepareStatement(sql);
+            pstm.setInt(1, id);
+            rs = pstm.executeQuery();
+            CustomerDetails obj = new CustomerDetails();
+            if (rs.next()) {
+                obj.setId(rs.getInt("id"));
+                obj.setName(rs.getString("name"));
+                obj.setUsername(rs.getString("username"));
+                obj.setDob(rs.getString("Dob"));
+                obj.setEmail(rs.getString("email"));
+                obj.setPhoneNo(rs.getString("Phone_no"));
+                obj.setGender(rs.getString("gender"));
+                obj.setCategory(rs.getString("category"));
+
+                System.out.println("Customer ID: " + obj.getId());
+                System.out.println("Name: " + obj.getName());
+                System.out.println("Username: " + obj.getUsername());
+                System.out.println("Dob: " + obj.getDob());
+                System.out.println("Email: " + obj.getEmail());
+                System.out.println("Phone no: " + obj.getPhoneNo());
+                System.out.println("Gender: " + obj.getGender());
+                System.out.println("Category: " + obj.getCategory());
+
+                // Display customer addresses
+                displayCustomerAddresses(id);
+            } else {
+                System.out.println("Entered customer id does not exist");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (pstm != null) pstm.close();
+                if (con != null) con.close();
+            } catch (SQLException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+    }
+
+    public void displayCustomerAddresses(int customerId) {
+        try {
+            String sql = "SELECT * FROM customer_address WHERE customer_id=?";
+            pstm = con.prepareStatement(sql);
+            pstm.setInt(1, customerId);
+            rs = pstm.executeQuery();
+
+            System.out.println("Addresses:");
+            while (rs.next()) {
+                System.out.println("Address Line 1: " + rs.getString("address_line1"));
+                System.out.println("Address Line 2: " + rs.getString("address_line2"));
+                System.out.println("City: " + rs.getString("city"));
+                System.out.println("State: " + rs.getString("state"));
+                System.out.println("Country: " + rs.getString("country"));
+                System.out.println("Postal Code: " + rs.getString("postal_code"));
+                System.out.println("------------");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        Customer customer = new Customer();
+        while (true) {
+            System.out.println("\nEnter 1 to add customer\nEnter 2 to delete customer profile\nEnter 3 to view customer's profile\nEnter 4 to exit");
+            int ch = sc.nextInt();
+            sc.nextLine(); // consume newline
+            int id = 0;
+            if (ch == 2 || ch == 3) {
+                System.out.println("Enter the customer id:");
+                id = sc.nextInt();
+                sc.nextLine(); // consume newline
+            }
+            switch (ch) {
+                case 1:
+                    customer.customerAccCreation();
+                    break;
+                case 2:
+                    customer.customerAccDeletion(id);
+                    break;
+                case 3:
+                    customer.displayProfile(id);
+                    break;
+                case 4:
+                    return;
+                default:
+                    System.out.println("Invalid choice");
+            }
+        }
+    }
+}
